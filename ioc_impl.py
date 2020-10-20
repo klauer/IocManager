@@ -26,10 +26,10 @@ def caput(pvname,value,timeout=1.0):
         pv.get(ctrl=False, timeout=timeout)
         pv.put(value, timeout)
         pv.disconnect()
-    except pyca.pyexc, e:
-        print 'pyca exception: %s' %(e)
-    except pyca.caexc, e:
-        print 'channel access exception: %s' %(e)
+    except pyca.pyexc as e:
+        print('pyca exception: %s' %(e))
+    except pyca.caexc as e:
+        print('channel access exception: %s' %(e))
 
 ######################################################################
  
@@ -398,14 +398,14 @@ class GraphicUserInterface(QtWidgets.QMainWindow):
                         os.execv("/usr/bin/ssh", ["ssh", user + "@" + utils.COMMITHOST, "/bin/tcsh", "-if"])
                 else:
                     if utils.COMMITHOST == socket.gethostname().split(".")[0]:
-                        print "C"
+                        print("C")
                         os.execv("/bin/tcsh", ["tcsh", "-if"])
                     else:
-                        print "D"
+                        print("D")
                         os.execv("/usr/bin/ssh", ["ssh", utils.COMMITHOST, "/bin/tcsh", "-if"])
             except:
                 pass
-            print "Say what?  execv failed?"
+            print("Say what?  execv failed?")
             sys.exit(0)
         l = utils.read_until(fd, "(assword:|> )").group(1)
         if l != "> ":
@@ -442,7 +442,7 @@ class GraphicUserInterface(QtWidgets.QMainWindow):
             try:
                 self.authenticate_user(user, password)
             except:
-                print "Authentication as %s failed!" % user
+                print("Authentication as %s failed!" % user)
                 self.unauthenticate()
 
     def unauthenticate(self):

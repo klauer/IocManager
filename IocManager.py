@@ -8,7 +8,7 @@ if __name__ == "__main__":
     options = Options(['hutch'], [], [])
     try:
         options.parse()
-    except Exception, msg:
+    except Exception as msg:
         options.usage(str(msg))
         sys.exit(1)
     app = QtWidgets.QApplication([''])
