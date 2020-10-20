@@ -75,50 +75,60 @@
 ######################################################################
 
 
-import telnetlib, string, datetime, os, time, fcntl, re, glob, subprocess, copy, sys
+import telnetlib
+import string
+import datetime
+import os
+import time
+import fcntl
+import re
+import glob
+import subprocess
+import copy
+import sys
 
 #
 # Defines
 #
-CAMRECORDER  = os.getenv("CAMRECORD_ROOT")
+CAMRECORDER = os.getenv("CAMRECORD_ROOT")
 PROCSERV_EXE = os.getenv("PROCSERV_EXE")
 if PROCSERV_EXE is None:
     PROCSERV_EXE = "procServ"
 else:
     PROCSERV_EXE = PROCSERV_EXE.split()[0]
-TMP_DIR      = "%s/config/.status/tmp" % os.getenv("PYPS_ROOT")
-STARTUP_DIR  = "%s/config/%%s/iocmanager/" % os.getenv("PYPS_ROOT")
+TMP_DIR = "%s/config/.status/tmp" % os.getenv("PYPS_ROOT")
+STARTUP_DIR = "%s/config/%%s/iocmanager/" % os.getenv("PYPS_ROOT")
 CONFIG_FILE = "%s/config/%%s/iocmanager.cfg" % os.getenv("PYPS_ROOT")
 NOSSH_FILE = "%s/config/%%s/iocmanager.nossh" % os.getenv("PYPS_ROOT")
 HIOC_STARTUP = "/reg/d/iocCommon/hioc/%s/startup.cmd"
-HIOC_POWER   = "/reg/common/tools/bin/power"
+HIOC_POWER = "/reg/common/tools/bin/power"
 HIOC_CONSOLE = "/reg/common/tools/bin/console"
-AUTH_FILE    = "%s/config/%%s/iocmanager.auth" % os.getenv("PYPS_ROOT")
-STATUS_DIR   = "%s/config/.status/%%s" % os.getenv("PYPS_ROOT")
-LOGBASE      = "%s/%%s/iocInfo/ioc.log" % os.getenv("IOC_DATA")
-PVFILE       = "%s/%%s/iocInfo/IOC.pvlist" % os.getenv("IOC_DATA")
-INSTALL      = __file__[:__file__.rfind('/')] + "/installConfig"
-BASEPORT     = 39050
-COMMITHOST   = "psbuild-rhel7"
-KINIT        = "/afs/slac.stanford.edu/package/heimdal/bin/kinit"
-NETCONFIG    = "/reg/common/tools/bin/netconfig"
+AUTH_FILE = "%s/config/%%s/iocmanager.auth" % os.getenv("PYPS_ROOT")
+STATUS_DIR = "%s/config/.status/%%s" % os.getenv("PYPS_ROOT")
+LOGBASE = "%s/%%s/iocInfo/ioc.log" % os.getenv("IOC_DATA")
+PVFILE = "%s/%%s/iocInfo/IOC.pvlist" % os.getenv("IOC_DATA")
+INSTALL = __file__[: __file__.rfind("/")] + "/installConfig"
+BASEPORT = 39050
+COMMITHOST = "psbuild-rhel7"
+KINIT = "/afs/slac.stanford.edu/package/heimdal/bin/kinit"
+NETCONFIG = "/reg/common/tools/bin/netconfig"
 
-STATUS_INIT      = "INITIALIZE WAIT"
+STATUS_INIT = "INITIALIZE WAIT"
 STATUS_NOCONNECT = "NOCONNECT"
-STATUS_RUNNING   = "RUNNING"
-STATUS_SHUTDOWN  = "SHUTDOWN"
-STATUS_DOWN      = "HOST DOWN"
-STATUS_ERROR     = "ERROR"
+STATUS_RUNNING = "RUNNING"
+STATUS_SHUTDOWN = "SHUTDOWN"
+STATUS_DOWN = "HOST DOWN"
+STATUS_ERROR = "ERROR"
 
-CONFIG_NORMAL    = 0
-CONFIG_ADDED     = 1
-CONFIG_DELETED   = 2
+CONFIG_NORMAL = 0
+CONFIG_ADDED = 1
+CONFIG_DELETED = 2
 
 # messages expected from procServ
 MSG_BANNER_END = "server started at"
 MSG_ISSHUTDOWN = "is SHUT DOWN"
 MSG_ISSHUTTING = "is shutting down"
-MSG_KILLED     = "process was killed"
+MSG_KILLED = "process was killed"
 MSG_RESTART = "new child"
 MSG_PROMPT_OLD = "\x0d\x0a[$>] "
 MSG_PROMPT = "\x0d\x0a> "
@@ -130,8 +140,8 @@ MSG_AUTORESTART_TO_OFF = "auto restart to OFF"
 MSG_AUTORESTART_MODE_TO_ON = "auto restart mode to ON"
 MSG_AUTORESTART_MODE_TO_OFF = "auto restart mode to OFF"
 
-EPICS_DEV_TOP	 = "/reg/g/pcds/epics-dev"
-EPICS_SITE_TOP   = "/reg/g/pcds/epics/"
+EPICS_DEV_TOP = "/reg/g/pcds/epics-dev"
+EPICS_SITE_TOP = "/reg/g/pcds/epics/"
 
 ######################################################################
 #
@@ -141,9 +151,11 @@ EPICS_SITE_TOP   = "/reg/g/pcds/epics/"
 #
 # Given an IOC name, find the base PV name.
 #
+
+
 def getBaseName(ioc):
     pvInfoPath = PVFILE % ioc
-    if not os.path.isfile( pvInfoPath ):
+    if not os.path.isfile(pvInfoPath):
         return None
     try:
         lines = open(pvInfoPath).readlines()
@@ -155,29 +167,32 @@ def getBaseName(ioc):
         print("Error parsing %s for base PV name!" % (pvInfoPath))
     return None
 
+
 #
 # Given a full path and an IOC name, return a path relative
 # to EPICS_SITE_TOP without the final "iocBoot".
 #
+
+
 def fixdir(dir, id):
-    if dir[0:len(EPICS_SITE_TOP)] == EPICS_SITE_TOP:
-        dir = dir[len(EPICS_SITE_TOP):]
+    if dir[0 : len(EPICS_SITE_TOP)] == EPICS_SITE_TOP:
+        dir = dir[len(EPICS_SITE_TOP) :]
     try:
         ext = "/children/build/iocBoot/" + id
-        if dir[len(dir)-len(ext):len(dir)] == ext:
-            dir = dir[0:len(dir)-len(ext)]
+        if dir[len(dir) - len(ext) : len(dir)] == ext:
+            dir = dir[0 : len(dir) - len(ext)]
     except:
         pass
     try:
         ext = "/build/iocBoot/" + id
-        if dir[len(dir)-len(ext):len(dir)] == ext:
-            dir = dir[0:len(dir)-len(ext)]
+        if dir[len(dir) - len(ext) : len(dir)] == ext:
+            dir = dir[0 : len(dir) - len(ext)]
     except:
         pass
     try:
         ext = "/iocBoot/" + id
-        if dir[len(dir)-len(ext):len(dir)] == ext:
-            dir = dir[0:len(dir)-len(ext)]
+        if dir[len(dir) - len(ext) : len(dir)] == ext:
+            dir = dir[0 : len(dir) - len(ext)]
     except:
         pass
     return dir
@@ -198,27 +213,29 @@ def readLogPortBanner(tn):
     except:
         response = ""
     if not response.count(MSG_BANNER_END):
-        return {'status'      : STATUS_ERROR,
-                'pid'         : "-",
-                'rid'          : "-",
-                'autorestart' : False,
-                'autorestartmode' : False,
-                'rdir'        : "/tmp" }
-    if re.search('SHUT DOWN', response):
+        return {
+            "status": STATUS_ERROR,
+            "pid": "-",
+            "rid": "-",
+            "autorestart": False,
+            "autorestartmode": False,
+            "rdir": "/tmp",
+        }
+    if re.search("SHUT DOWN", response):
         tmpstatus = STATUS_SHUTDOWN
         pid = "-"
     else:
         tmpstatus = STATUS_RUNNING
-        pid = re.search('@@@ Child \"(.*)\" PID: ([0-9]*)', response).group(2)
-    match = re.search('@@@ Child \"(.*)\" start', response)
+        pid = re.search('@@@ Child "(.*)" PID: ([0-9]*)', response).group(2)
+    match = re.search('@@@ Child "(.*)" start', response)
     getid = "-"
     if match:
         getid = match.group(1)
-    match = re.search('@@@ Server startup directory: (.*)', response)
+    match = re.search("@@@ Server startup directory: (.*)", response)
     dir = "/tmp"
     if match:
         dir = match.group(1)
-        if dir[-1] == '\r':
+        if dir[-1] == "\r":
             dir = dir[:-1]
     if re.search(MSG_AUTORESTART_IS_ON, response):
         arst = True
@@ -230,37 +247,47 @@ def readLogPortBanner(tn):
     else:
         arstm = False
 
-    return {'status'      : tmpstatus,
-            'pid'         : pid,
-            'rid'         : getid,
-            'autorestart' : arst,
-            'autorestartmode' : arstm,
-            'rdir'        : fixdir(dir, getid) }
+    return {
+        "status": tmpstatus,
+        "pid": pid,
+        "rid": getid,
+        "autorestart": arst,
+        "autorestartmode": arstm,
+        "rdir": fixdir(dir, getid),
+    }
+
 
 #
 # Returns a dictionary with status information for a given host/port.
 #
+
+
 def check_status(host, port, id):
     # Ping the host to see if it is up!
     pingrc = os.system("ping -c 1 -w 1 -W 0.002 %s >/dev/null 2>/dev/null" % host)
     if pingrc != 0:
-        return {'status'      : STATUS_DOWN,
-                'rid'         : id,
-                'pid'         : "-",
-                'autorestart' : False,
-                'rdir'        : "/tmp" }
+        return {
+            "status": STATUS_DOWN,
+            "rid": id,
+            "pid": "-",
+            "autorestart": False,
+            "rdir": "/tmp",
+        }
     try:
         tn = telnetlib.Telnet(host, port, 1)
     except:
-        return {'status'      : STATUS_NOCONNECT,
-                'rid'         : id,
-                'pid'         : "-",
-                'autorestart' : False,
-                'autorestartmode' : False,
-                'rdir'        : "/tmp" }
+        return {
+            "status": STATUS_NOCONNECT,
+            "rid": id,
+            "pid": "-",
+            "autorestart": False,
+            "autorestartmode": False,
+            "rdir": "/tmp",
+        }
     result = readLogPortBanner(tn)
     tn.close()
     return result
+
 
 def openTelnet(host, port):
     connected = False
@@ -278,14 +305,16 @@ def openTelnet(host, port):
     else:
         return None
 
+
 def fixTelnetShell(host, port):
     tn = openTelnet(host, port)
-    tn.write("\x15\x0d");
+    tn.write("\x15\x0d")
     statd = tn.expect([MSG_PROMPT_OLD], 2)
-    tn.write("export PS1='> '\n");
+    tn.write("export PS1='> '\n")
     statd = tn.read_until(MSG_PROMPT, 2)
     tn.close()
-    
+
+
 def killProc(host, port, verbose=False):
     print("Killing IOC on host %s, port %s..." % (host, port))
 
@@ -295,61 +324,77 @@ def killProc(host, port, verbose=False):
         try:
             statd = readLogPortBanner(tn)
         except:
-            print('ERROR: killProc() failed to readLogPortBanner on %s port %s' % (host, port))
+            print(
+                "ERROR: killProc() failed to readLogPortBanner on %s port %s"
+                % (host, port)
+            )
             tn.close()
             return
         try:
             if verbose:
-                print('killProc: %s port %s status is %s' % (host, port, statd['status']))
-            if statd['autorestart']:
+                print(
+                    "killProc: %s port %s status is %s" % (host, port, statd["status"])
+                )
+            if statd["autorestart"]:
                 if verbose:
-                    print('killProc: turning off autorestart on %s port %s' % (host, port))
+                    print(
+                        "killProc: turning off autorestart on %s port %s" % (host, port)
+                    )
                 # send ^T to toggle off auto restart.
                 tn.write("\x14")
                 # wait for toggled message
-                if statd['autorestartmode']:
+                if statd["autorestartmode"]:
                     r = tn.read_until(MSG_AUTORESTART_MODE_TO_OFF, 1)
                 else:
                     r = tn.read_until(MSG_AUTORESTART_TO_OFF, 1)
                 time.sleep(0.25)
         except:
-            print('ERROR: killProc() failed to turn off autorestart on %s port %s' % (host, port))
+            print(
+                "ERROR: killProc() failed to turn off autorestart on %s port %s"
+                % (host, port)
+            )
             tn.close()
             return
         tn.close()
     else:
-        print('ERROR: killProc() telnet to %s port %s failed' % (host, port))
+        print("ERROR: killProc() telnet to %s port %s failed" % (host, port))
         return
 
     # Now, reconnect to actually kill it!
     tn = openTelnet(host, port)
     if tn:
         statd = readLogPortBanner(tn)
-        if statd['status'] == STATUS_RUNNING:
+        if statd["status"] == STATUS_RUNNING:
             try:
                 if verbose:
-                    print('killProc: Sending Ctrl-X to %s port %s' % (host, port))
+                    print("killProc: Sending Ctrl-X to %s port %s" % (host, port))
                 # send ^X to kill child process
-                tn.write("\x18");
+                tn.write("\x18")
                 # wait for killed message
                 r = tn.read_until(MSG_KILLED, 1)
                 time.sleep(0.25)
             except:
-                print('ERROR: killProc() failed to kill process on %s port %s' % (host, port))
+                print(
+                    "ERROR: killProc() failed to kill process on %s port %s"
+                    % (host, port)
+                )
                 tn.close()
                 return
         try:
             if verbose:
-                print('killProc: Sending Ctrl-Q to %s port %s' % (host, port))
+                print("killProc: Sending Ctrl-Q to %s port %s" % (host, port))
             # send ^Q to kill procServ
-            tn.write("\x11");
+            tn.write("\x11")
         except:
-            print('ERROR: killProc() failed to kill procServ on %s port %s' % (host, port))
+            print(
+                "ERROR: killProc() failed to kill procServ on %s port %s" % (host, port)
+            )
             tn.close()
             return
         tn.close()
     else:
-        print('ERROR: killProc() telnet to %s port %s failed' % (host, port))
+        print("ERROR: killProc() telnet to %s port %s failed" % (host, port))
+
 
 def restartProc(host, port):
     print("Restarting IOC on host %s, port %s..." % (host, port))
@@ -357,70 +402,79 @@ def restartProc(host, port):
     started = False
     if tn:
         statd = readLogPortBanner(tn)
-        if statd['status'] == STATUS_RUNNING:
+        if statd["status"] == STATUS_RUNNING:
             try:
                 # send ^X to kill child process
-                tn.write("\x18");
+                tn.write("\x18")
 
                 # wait for killed message
                 r = tn.read_until(MSG_KILLED, 1)
                 time.sleep(0.25)
             except:
-                pass # What do we do now?!?
+                pass  # What do we do now?!?
 
-        if not statd['autorestart']:
+        if not statd["autorestart"]:
             # send ^R to restart child process
-            tn.write("\x12");
+            tn.write("\x12")
 
         # wait for restart message
         r = tn.read_until(MSG_RESTART, 1)
         if not r.count(MSG_RESTART):
-            print('ERROR: no restart message... ')
+            print("ERROR: no restart message... ")
         else:
             started = True
 
         tn.close()
     else:
-        print('ERROR: restartProc() telnet to %s port %s failed' % (host, port))
+        print("ERROR: restartProc() telnet to %s port %s failed" % (host, port))
 
     return started
 
+
 def startProc(cfg, entry, local=False):
     # Hopefully, we can dispose of this soon!
-    platform = '1'
-    if cfg == 'xrt':
-        platform = '2'
-    if cfg == 'las':
-        platform = '3'
+    platform = "1"
+    if cfg == "xrt":
+        platform = "2"
+    if cfg == "las":
+        platform = "3"
 
     if local:
         host = "localhost"
     else:
-        host  = entry['host']
-    port  = entry['port']
-    name  = entry['id']
+        host = entry["host"]
+    port = entry["port"]
+    name = entry["id"]
     try:
-        cmd = entry['cmd']
+        cmd = entry["cmd"]
     except:
         cmd = "./st.cmd"
     try:
-        if 'u' in entry['flags']:
+        if "u" in entry["flags"]:
             # The Old Regime: add u to flags to append the ID to the command.
-            cmd += ' -u ' + name
+            cmd += " -u " + name
     except:
         pass
-        
+
     sr = os.getenv("SCRIPTROOT")
     if sr == None:
         sr = STARTUP_DIR % cfg
-    elif sr[-1] != '/':
-        sr += '/'
+    elif sr[-1] != "/":
+        sr += "/"
     cmd = "%sstartProc %s %d %s %s" % (sr, name, port, cfg, cmd)
     log = LOGBASE % name
     ctrlport = BASEPORT + 2 * (int(platform) - 1)
-    print("Starting %s on port %s of host %s, platform %s..." % (name, port, host, platform))
-    cmd = '%s --logfile %s --name %s --allow --coresize 0 --savelog %d %s' % \
-          (PROCSERV_EXE, log, name, port, cmd)
+    print(
+        "Starting %s on port %s of host %s, platform %s..."
+        % (name, port, host, platform)
+    )
+    cmd = "%s --logfile %s --name %s --allow --coresize 0 --savelog %d %s" % (
+        PROCSERV_EXE,
+        log,
+        name,
+        port,
+        cmd,
+    )
     try:
         tn = telnetlib.Telnet(host, ctrlport, 1)
     except:
@@ -430,23 +484,24 @@ def startProc(cfg, entry, local=False):
         # telnet succeeded
 
         # send ^U followed by carriage return to safely reach the prompt
-        tn.write("\x15\x0d");
+        tn.write("\x15\x0d")
 
         # wait for prompt (procServ)
         statd = tn.read_until(MSG_PROMPT, 2)
         if not string.count(statd, MSG_PROMPT):
-            print('ERROR: no prompt at %s port %s' % (host, ctrlport))
-            
+            print("ERROR: no prompt at %s port %s" % (host, ctrlport))
+
         # send command
-        tn.write('%s\n' % cmd);
+        tn.write("%s\n" % cmd)
 
         # wait for prompt
         statd = tn.read_until(MSG_PROMPT, 2)
         if not string.count(statd, MSG_PROMPT):
-            print('ERR: no prompt at %s port %s' % (host, ctrlport))
+            print("ERR: no prompt at %s port %s" % (host, ctrlport))
 
         # close telnet connection
         tn.close()
+
 
 ######################################################################
 #
@@ -459,14 +514,28 @@ def startProc(cfg, entry, local=False):
 #
 # cfg can be a path to config file or name of a hutch
 #
+
+
 def readConfig(cfg, time=None, silent=False):
-    config = {'procmgr_config': None, 'hosts': None, 'dir':'dir',
-              'id':'id', 'cmd':'cmd', 'flags':'flags', 'port':'port', 'host':'host',
-              'disable':'disable', 'history':'history', 'delay':'delay', 'alias':'alias', 'hard':'hard' }
+    config = {
+        "procmgr_config": None,
+        "hosts": None,
+        "dir": "dir",
+        "id": "id",
+        "cmd": "cmd",
+        "flags": "flags",
+        "port": "port",
+        "host": "host",
+        "disable": "disable",
+        "history": "history",
+        "delay": "delay",
+        "alias": "alias",
+        "hard": "hard",
+    }
     vars = set(config.keys())
-    if len(cfg.split('/')) > 1: # cfg is file path
+    if len(cfg.split("/")) > 1:  # cfg is file path
         cfgfn = cfg
-    else: # cfg is name of hutch
+    else:  # cfg is name of hutch
         cfgfn = CONFIG_FILE % cfg
     try:
         f = open(cfgfn, "r")
@@ -475,18 +544,18 @@ def readConfig(cfg, time=None, silent=False):
             print("readConfig file error: %s" % str(msg))
         return None
 
-    fcntl.lockf(f, fcntl.LOCK_SH)    # Wait for the lock!!!!
+    fcntl.lockf(f, fcntl.LOCK_SH)  # Wait for the lock!!!!
     try:
         mtime = os.stat(cfgfn).st_mtime
         if time != None and time == mtime:
             res = None
         else:
-            exec(compile(open(cfgfn, "rb").read(), cfgfn, 'exec'), {}, config)
+            exec(compile(open(cfgfn, "rb").read(), cfgfn, "exec"), {}, config)
             newvars = set(config.keys()).difference(vars)
             vdict = {}
             for v in newvars:
                 vdict[v] = config[v]
-            res = (mtime, config['procmgr_config'], config['hosts'], vdict)
+            res = (mtime, config["procmgr_config"], config["hosts"], vdict)
     except Exception as msg:
         if not silent:
             print("readConfig error: %s" % str(msg))
@@ -497,37 +566,40 @@ def readConfig(cfg, time=None, silent=False):
         return None
     for l in res[1]:
         # Add defaults!
-        if not 'disable' in list(l.keys()):
-            l['disable'] = False
-        if not 'hard' in list(l.keys()):
-            l['hard'] = False
-        if not 'history' in list(l.keys()):
-            l['history'] = []
-        if not 'alias' in list(l.keys()):
-            l['alias'] = ""
-        l['cfgstat'] = CONFIG_NORMAL
-        if l['hard']:
-            l['base'] = getBaseName(l['id'])
-            l['dir'] = getHardIOCDir(l['id'], silent)
-            l['host'] = l['id']
-            l['port'] = -1
-            l['rhost'] = l['id']
-            l['rport'] = -1
-            l['rdir'] = l['dir']
-            l['newstyle'] = False
-            l['pdir'] = ""
+        if not "disable" in list(l.keys()):
+            l["disable"] = False
+        if not "hard" in list(l.keys()):
+            l["hard"] = False
+        if not "history" in list(l.keys()):
+            l["history"] = []
+        if not "alias" in list(l.keys()):
+            l["alias"] = ""
+        l["cfgstat"] = CONFIG_NORMAL
+        if l["hard"]:
+            l["base"] = getBaseName(l["id"])
+            l["dir"] = getHardIOCDir(l["id"], silent)
+            l["host"] = l["id"]
+            l["port"] = -1
+            l["rhost"] = l["id"]
+            l["rport"] = -1
+            l["rdir"] = l["dir"]
+            l["newstyle"] = False
+            l["pdir"] = ""
         else:
-            l['rid'] = l['id']
-            l['rdir'] = l['dir']
-            l['rhost'] = l['host']
-            l['rport'] = l['port']
-            l['newstyle'] = False
-            l['pdir'] = findParent(l['id'], l['dir'])
+            l["rid"] = l["id"]
+            l["rdir"] = l["dir"]
+            l["rhost"] = l["host"]
+            l["rport"] = l["port"]
+            l["newstyle"] = False
+            l["pdir"] = findParent(l["id"], l["dir"])
     return res
+
 
 #
 # Writes a hutch configuration file, dealing with possible changes ("new*" fields).
 #
+
+
 def writeConfig(hutch, hostlist, cfglist, vars, f=None):
     if f == None:
         f = open(CONFIG_FILE % hutch, "r+")
@@ -543,20 +615,21 @@ def writeConfig(hutch, hostlist, cfglist, vars, f=None):
     f.write("\nhosts = [\n")
     for h in hostlist:
         f.write("   '%s',\n" % h)
-    f.write("]\n\n");
+    f.write("]\n\n")
     f.write("procmgr_config = [\n")
     for entry in cfglist:
-        if entry['cfgstat'] == CONFIG_DELETED:
+        if entry["cfgstat"] == CONFIG_DELETED:
             continue
         try:
-            id = entry['newid'].strip()  # Bah.  Sometimes we add a space so this becomes blue!
+            # Bah.  Sometimes we add a space so this becomes blue!
+            id = entry["newid"].strip()
         except:
-            id = entry['id']
+            id = entry["id"]
         try:
-            alias = entry['newalias']
+            alias = entry["newalias"]
         except:
-            alias = entry['alias']
-        if entry['hard']:
+            alias = entry["alias"]
+        if entry["hard"]:
             if alias != "":
                 extra = ", alias: '%s'" % alias
             else:
@@ -564,55 +637,60 @@ def writeConfig(hutch, hostlist, cfglist, vars, f=None):
             f.write(" {id:'%s', hard: True%s},\n" % (id, extra))
             continue
         try:
-            host = entry['newhost']
+            host = entry["newhost"]
         except:
-            host = entry['host']
+            host = entry["host"]
         try:
-            port = entry['newport']
+            port = entry["newport"]
         except:
-            port = entry['port']
+            port = entry["port"]
         try:
-            dir = entry['newdir']
+            dir = entry["newdir"]
         except:
-            dir = entry['dir']
+            dir = entry["dir"]
         extra = ""
         try:
-            disable = entry['newdisable']
+            disable = entry["newdisable"]
         except:
-            disable = entry['disable']
+            disable = entry["disable"]
         if disable:
             extra += ", disable: True"
         if alias != "":
             extra += ", alias: '%s'" % alias
         try:
-            h = entry['history']
+            h = entry["history"]
             if h != []:
-                extra += ",\n  history: [" + ", ".join(["'"+l+"'" for l in h]) + "]"
+                extra += ",\n  history: [" + ", ".join(["'" + l + "'" for l in h]) + "]"
         except:
             pass
         try:
-            extra += ", delay: %d" % entry['delay']
+            extra += ", delay: %d" % entry["delay"]
         except:
             pass
         try:
-            extra += ", cmd: '%s'" % entry['cmd']
+            extra += ", cmd: '%s'" % entry["cmd"]
         except:
             pass
-        f.write(" {id:'%s', host: '%s', port: %s, dir: '%s'%s},\n" %
-                (id, host, port, dir, extra))
-    f.write("]\n");
+        f.write(
+            " {id:'%s', host: '%s', port: %s, dir: '%s'%s},\n"
+            % (id, host, port, dir, extra)
+        )
+    f.write("]\n")
     fcntl.lockf(f, fcntl.LOCK_UN)
     f.close()
+
 
 #
 # Install an existing file as the hutch configuration file.
 #
+
+
 def installConfig(hutch, file, fd=None):
     open(CONFIG_FILE % hutch, "r").close()  # Sigh... NFS.
     mtime = os.stat(CONFIG_FILE % hutch).st_mtime
     if fd != None:
         flush_input(fd)
-        #print ">>> %s %s %s" % (INSTALL, hutch, file)
+        # print ">>> %s %s %s" % (INSTALL, hutch, file)
         do_write(fd, "%s %s %s\n" % (INSTALL, hutch, file))
         read_until(fd, "> ")
     else:
@@ -634,6 +712,7 @@ def installConfig(hutch, file, fd=None):
     if mtime == mtime2:
         raise Exception("No change?!?")
 
+
 #
 # Reads the status directory for a hutch, looking for changes.  The newer
 # parameter is a routine that is called as newer(iocname, mtime) which
@@ -642,6 +721,8 @@ def installConfig(hutch, file, fd=None):
 #
 # Returns a list of dictionaries containing the new information.
 #
+
+
 def readStatusDir(cfg, readfile=lambda fn, f: open(fn).readlines()):
     files = os.listdir(STATUS_DIR % cfg)
     d = {}
@@ -650,35 +731,53 @@ def readStatusDir(cfg, readfile=lambda fn, f: open(fn).readlines()):
         mtime = os.stat(fn).st_mtime
         l = readfile(fn, f)
         if l != []:
-            stat = l[0].strip().split()                     # PID HOST PORT DIRECTORY
+            # PID HOST PORT DIRECTORY
+            stat = l[0].strip().split()
             if len(stat) == 4:
                 try:
-                    if d[(stat[1], int(stat[2]))]['mtime'] < mtime:
+                    if d[(stat[1], int(stat[2]))]["mtime"] < mtime:
                         # Duplicate, but newer, so replace!
                         try:
-                            print("Deleting obsolete %s in favor of %s" % (d[(stat[1], int(stat[2]))]['rid'], f))
-                            os.unlink((STATUS_DIR % cfg) + "/" + d[(stat[1], int(stat[2]))]['rid'])
+                            print(
+                                "Deleting obsolete %s in favor of %s"
+                                % (d[(stat[1], int(stat[2]))]["rid"], f)
+                            )
+                            os.unlink(
+                                (STATUS_DIR % cfg)
+                                + "/"
+                                + d[(stat[1], int(stat[2]))]["rid"]
+                            )
                         except:
-                            print("Error while trying to delete file %s!" % (STATUS_DIR % cfg) + "/" + d[(stat[1], int(stat[2]))]['rid'])
+                            print(
+                                "Error while trying to delete file %s!"
+                                % (STATUS_DIR % cfg)
+                                + "/"
+                                + d[(stat[1], int(stat[2]))]["rid"]
+                            )
                         # Leave this here to make sure file is updated.
-                        raise Exception( "Need to update cfg file." )
+                        raise Exception("Need to update cfg file.")
                     else:
                         # Duplicate, but older, so ignore!
                         try:
-                            print("Deleting obsolete %s in favor of %s" % (f, d[(stat[1], int(stat[2]))]['rid']))
+                            print(
+                                "Deleting obsolete %s in favor of %s"
+                                % (f, d[(stat[1], int(stat[2]))]["rid"])
+                            )
                             os.unlink(fn)
                         except:
                             print("Error while trying to delete file %s!" % fn)
                 except:
                     try:
-                        d[(stat[1], int(stat[2]))] = {'rid' : f,
-                                                  'pid': stat[0],
-                                                  'rhost': stat[1],
-                                                  'rport': int(stat[2]),
-                                                  'rdir': stat[3],
-                                                  'newstyle' : True,
-                                                  'mtime': mtime,
-                                                  'hard': False}
+                        d[(stat[1], int(stat[2]))] = {
+                            "rid": f,
+                            "pid": stat[0],
+                            "rhost": stat[1],
+                            "rport": int(stat[2]),
+                            "rdir": stat[3],
+                            "newstyle": True,
+                            "mtime": mtime,
+                            "hard": False,
+                        }
                     except:
                         print("Status dir failure!")
                         print(f)
@@ -690,123 +789,150 @@ def readStatusDir(cfg, readfile=lambda fn, f: open(fn).readlines()):
                     print("Error while trying to delete file %s!" % fn)
     return list(d.values())
 
+
 #
 # Apply the current configuration.
 #
+
+
 def applyConfig(cfg, verify=None, ioc=None):
-  result = readConfig(cfg)
-  if result == None:
-      print("Cannot read configuration for %s!" % cfg)
-      return -1
-  (mtime, cfglist, hostlist, vdict) = result
+    result = readConfig(cfg)
+    if result == None:
+        print("Cannot read configuration for %s!" % cfg)
+        return -1
+    (mtime, cfglist, hostlist, vdict) = result
 
-  config = {}
-  for l in cfglist:
-    if ioc == None or ioc == l['id']:
-        config[l['id']] = l
+    config = {}
+    for l in cfglist:
+        if ioc == None or ioc == l["id"]:
+            config[l["id"]] = l
 
-  runninglist = readStatusDir(cfg)
+    runninglist = readStatusDir(cfg)
 
-  current = {}
-  for l in runninglist:
-      if ioc == None or ioc == l['rid']:
-          result = check_status(l['rhost'], l['rport'], l['rid'])
-          if result['status'] == STATUS_RUNNING:
-              rdir = l['rdir']
-              l.update(result);
-              if l['rdir'] == '/tmp':
-                  l['rdir'] = rdir
-              else:
-                  l['newstyle'] = False
-              current[l['rid']] = l
+    current = {}
+    for l in runninglist:
+        if ioc == None or ioc == l["rid"]:
+            result = check_status(l["rhost"], l["rport"], l["rid"])
+            if result["status"] == STATUS_RUNNING:
+                rdir = l["rdir"]
+                l.update(result)
+                if l["rdir"] == "/tmp":
+                    l["rdir"] = rdir
+                else:
+                    l["newstyle"] = False
+                current[l["rid"]] = l
 
-  running = list(current.keys())
-  wanted  = list(config.keys())
+    running = list(current.keys())
+    wanted = list(config.keys())
 
-  # Double-check for old-style IOCs that don't have an indicator file!
-  for l in wanted:
-      if not l in running:
-          result = check_status(config[l]['host'], int(config[l]['port']), config[l]['id'])
-          if result['status'] == STATUS_RUNNING:
-              result.update({'rhost': config[l]['host'],
-                             'rport': config[l]['port'],
-                             'newstyle': False})
-              current[l] = result
+    # Double-check for old-style IOCs that don't have an indicator file!
+    for l in wanted:
+        if not l in running:
+            result = check_status(
+                config[l]["host"], int(config[l]["port"]), config[l]["id"]
+            )
+            if result["status"] == STATUS_RUNNING:
+                result.update(
+                    {
+                        "rhost": config[l]["host"],
+                        "rport": config[l]["port"],
+                        "newstyle": False,
+                    }
+                )
+                current[l] = result
 
-  running = list(current.keys())
-  nw = []
-  for l in wanted:
-      try:
-          if not config[l]['newdisable'] and not config[l]['hard']:
-              nw.append(l)
-      except:
-          if not config[l]['disable'] and not config[l]['hard']:
-              nw.append(l)
-  wanted = nw
+    running = list(current.keys())
+    nw = []
+    for l in wanted:
+        try:
+            if not config[l]["newdisable"] and not config[l]["hard"]:
+                nw.append(l)
+        except:
+            if not config[l]["disable"] and not config[l]["hard"]:
+                nw.append(l)
+    wanted = nw
 
-  #
-  # Note the hard IOC handling... we don't want to start them, but they 
-  # don't have entries in the running directory anyway so we don't think
-  # we need to!
-  #
+    #
+    # Note the hard IOC handling... we don't want to start them, but they
+    # don't have entries in the running directory anyway so we don't think
+    # we need to!
+    #
 
-  # Camera recorders always seem to be in the wrong directory, so cheat!
-  for l in cfglist:
-      if l['dir'] == CAMRECORDER:
-          try:
-              current[l['id']]['rdir'] = CAMRECORDER
-          except:
-              pass
+    # Camera recorders always seem to be in the wrong directory, so cheat!
+    for l in cfglist:
+        if l["dir"] == CAMRECORDER:
+            try:
+                current[l["id"]]["rdir"] = CAMRECORDER
+            except:
+                pass
 
-  #
-  # Now, we need to make three lists: kill, restart, and start.
-  #
-  
-  # Kill anyone who we don't want, or is running on the wrong host or port, or is oldstyle and needs
-  # an upgrade.
-  kill_list    = [l for l in running if not l in wanted or
-                    current[l]['rhost'] != config[l]['host'] or
-                    current[l]['rport'] != config[l]['port'] or
-                    (	(not current[l]['newstyle']) and
-                        current[l]['rdir'] != config[l]['dir']	)]
-                  
-  # Start anyone who wasn't running, or was running on the wrong host or port, or is oldstyle and needs
-  # an upgrade.
-  start_list   = [l for l in wanted if not l in running or current[l]['rhost'] != config[l]['host'] or
-                  current[l]['rport'] != config[l]['port'] or
-                  (not current[l]['newstyle'] and
-                   current[l]['rdir'] != config[l]['dir'])]
+    #
+    # Now, we need to make three lists: kill, restart, and start.
+    #
 
-  # Anyone running the wrong version, newstyle, on the right host and port just needs a restart.
-  restart_list = [l for l in wanted if l in running and current[l]['rhost'] == config[l]['host'] and
-                  current[l]['newstyle'] and
-                  current[l]['rport'] == config[l]['port'] and
-                  current[l]['rdir'] != config[l]['dir']]
+    # Kill anyone who we don't want, or is running on the wrong host or port, or is oldstyle and needs
+    # an upgrade.
+    kill_list = [
+        l
+        for l in running
+        if not l in wanted
+        or current[l]["rhost"] != config[l]["host"]
+        or current[l]["rport"] != config[l]["port"]
+        or ((not current[l]["newstyle"]) and current[l]["rdir"] != config[l]["dir"])
+    ]
 
-  if verify != None:
-      (kill_list, start_list, restart_list) = verify(current, config, kill_list, start_list, restart_list)
-  
-  for l in kill_list:
-    killProc(current[l]['rhost'], int(current[l]['rport']))
-    try:
-        # This is dead, so get rid of the status file!
-        os.unlink((STATUS_DIR % cfg) + "/" + l)
-    except:
-        print("Error while trying to delete file %s!" % (STATUS_DIR % cfg) + "/" + l)
+    # Start anyone who wasn't running, or was running on the wrong host or port, or is oldstyle and needs
+    # an upgrade.
+    start_list = [
+        l
+        for l in wanted
+        if not l in running
+        or current[l]["rhost"] != config[l]["host"]
+        or current[l]["rport"] != config[l]["port"]
+        or (not current[l]["newstyle"] and current[l]["rdir"] != config[l]["dir"])
+    ]
 
-  for l in start_list:
-    startProc(cfg, config[l])
+    # Anyone running the wrong version, newstyle, on the right host and port just needs a restart.
+    restart_list = [
+        l
+        for l in wanted
+        if l in running
+        and current[l]["rhost"] == config[l]["host"]
+        and current[l]["newstyle"]
+        and current[l]["rport"] == config[l]["port"]
+        and current[l]["rdir"] != config[l]["dir"]
+    ]
 
-  for l in restart_list:
-    restartProc(current[l]['rhost'], int(current[l]['rport']))
+    if verify != None:
+        (kill_list, start_list, restart_list) = verify(
+            current, config, kill_list, start_list, restart_list
+        )
 
-  time.sleep(1)
-  return 0
+    for l in kill_list:
+        killProc(current[l]["rhost"], int(current[l]["rport"]))
+        try:
+            # This is dead, so get rid of the status file!
+            os.unlink((STATUS_DIR % cfg) + "/" + l)
+        except:
+            print(
+                "Error while trying to delete file %s!" % (STATUS_DIR % cfg) + "/" + l
+            )
+
+    for l in start_list:
+        startProc(cfg, config[l])
+
+    for l in restart_list:
+        restartProc(current[l]["rhost"], int(current[l]["rport"]))
+
+    time.sleep(1)
+    return 0
+
 
 ######################################################################
 #
 # Miscellaneous utilities
 #
+
 
 def check_auth(user, hutch):
     lines = open(AUTH_FILE % hutch).readlines()
@@ -815,6 +941,7 @@ def check_auth(user, hutch):
         if l == user:
             return True
     return False
+
 
 def check_ssh(user, hutch):
     try:
@@ -827,20 +954,23 @@ def check_ssh(user, hutch):
             return False
     return True
 
-eq      = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*?)[ \t]*$")
-eqq     = re.compile('^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*"([^"]*)"[ \t]*$')
-eqqq    = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*'([^']*)'[ \t]*$")
-sp      = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]+(.+?)[ \t]*$")
-spq     = re.compile('^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]+"([^"]*)"[ \t]*$')
-spqq    = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]+'([^']*)'[ \t]*$")
+
+eq = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*?)[ \t]*$")
+eqq = re.compile('^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*"([^"]*)"[ \t]*$')
+eqqq = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*'([^']*)'[ \t]*$")
+sp = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]+(.+?)[ \t]*$")
+spq = re.compile('^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]+"([^"]*)"[ \t]*$')
+spqq = re.compile("^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]+'([^']*)'[ \t]*$")
+
 
 def readAll(fn):
-    if fn[0] != '/':
+    if fn[0] != "/":
         fn = EPICS_SITE_TOP + fn
     try:
         return open(fn).readlines()
     except:
         return []
+
 
 def findParent(ioc, dir):
     fn = dir + "/" + ioc + ".cfg"
@@ -867,41 +997,45 @@ def findParent(ioc, dir):
             var = m.group(1)
             val = m.group(2)
             if var == "RELEASE":
-                if val == '$$PATH/..' or val == '$$UP(PATH)':
+                if val == "$$PATH/.." or val == "$$UP(PATH)":
                     return fixdir(dir, ioc)
                 else:
                     return fixdir(val, ioc)
     return ""
+
 
 def read_until(fd, expr):
     exp = re.compile(expr)
     data = ""
     while True:
         v = os.read(fd, 1024)
-        #print "<<< %s" % v
+        # print "<<< %s" % v
         data += v
         m = exp.search(data)
         if m != None:
             return m
 
+
 def flush_input(fd):
-    fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK) 
+    fcntl.fcntl(fd, fcntl.F_SETFL, os.O_NONBLOCK)
     while True:
         try:
             data = os.read(fd, 1024)
         except:
-            fcntl.fcntl(fd, fcntl.F_SETFL, 0) 
+            fcntl.fcntl(fd, fcntl.F_SETFL, 0)
             return
+
 
 def do_write(fd, msg):
     os.write(fd, msg)
 
+
 def commit_config(hutch, comment, fd):
     config = CONFIG_FILE % hutch
     flush_input(fd)
-    do_write(fd, "cat >" + config + ".comment <<EOFEOFEOF\n");
+    do_write(fd, "cat >" + config + ".comment <<EOFEOFEOF\n")
     do_write(fd, comment)
-    do_write(fd, "\nEOFEOFEOF\n");
+    do_write(fd, "\nEOFEOFEOF\n")
     read_until(fd, "> ")
     # Sigh.  This does nothing but read the file, which makes NFS get the latest.
     do_write(fd, "cp " + config + " /tmp/foo\n")
@@ -913,31 +1047,35 @@ def commit_config(hutch, comment, fd):
     do_write(fd, "rm -f " + config + ".comment\n")
     read_until(fd, "> ")
 
+
 # Find siocs matching input arguments
 # May want to extend this to regular expressions at some point
 # eg: find_iocs(host='ioc-xcs-mot1') or find_iocs(id='ioc-xcs-imb3')
 # Returns list of tuples of form:
 #  ['config-file', {ioc config dict}]
+
+
 def find_iocs(**kwargs):
-    cfgs = glob.glob(CONFIG_FILE % '*')
+    cfgs = glob.glob(CONFIG_FILE % "*")
     configs = list()
     for cfg in cfgs:
         config = readConfig(cfg)[1]
         for ioc in config:
             for k in list(kwargs.items()):
-                if ioc.get(k[0])!=k[1]:
+                if ioc.get(k[0]) != k[1]:
                     break
             else:
-                configs.append([cfg,ioc])
+                configs.append([cfg, ioc])
                 pass
     return configs
+
 
 def netconfig(host):
     try:
         env = copy.deepcopy(os.environ)
-        del env['LD_LIBRARY_PATH']
+        del env["LD_LIBRARY_PATH"]
         p = subprocess.Popen([NETCONFIG, "view", host], env=env, stdout=subprocess.PIPE)
-        r = [l.strip().split(": ") for l in p.communicate()[0].split('\n')]
+        r = [l.strip().split(": ") for l in p.communicate()[0].split("\n")]
         d = {}
         for l in r:
             if len(l) == 2:
@@ -946,8 +1084,12 @@ def netconfig(host):
     except:
         return {}
 
+
 def rebootServer(host):
-    os.system("/usr/bin/ipmitool -I lanplus -U ADMIN -Pipmia8min -H %s power cycle &" % host)
+    os.system(
+        "/usr/bin/ipmitool -I lanplus -U ADMIN -Pipmia8min -H %s power cycle &" % host
+    )
+
 
 def getHardIOCDir(host, silent=False):
     dir = "Unknown"
@@ -960,18 +1102,19 @@ def getHardIOCDir(host, silent=False):
     for l in lines:
         if l[:5] == "chdir":
             try:
-                dir = "ioc/" + re.search('\"/iocs/(.*)/iocBoot', l).group(1)
+                dir = "ioc/" + re.search('"/iocs/(.*)/iocBoot', l).group(1)
             except:
-                pass # Having dir show "Unknown" should suffice.
+                pass  # Having dir show "Unknown" should suffice.
     return dir
+
 
 def restartHIOC(host):
     """ Attempts to console into a HIOC and reboot it via the shell. """
     try:
-        for l in netconfig(host)['console port dn'].split(','):
-            if l[:7] == 'cn=port':
+        for l in netconfig(host)["console port dn"].split(","):
+            if l[:7] == "cn=port":
                 port = 2000 + int(l[7:])
-            if l[:7] == 'cn=digi':
+            if l[:7] == "cn=digi":
                 host = l[3:]
     except:
         print("Error parsing netconfig for HIOC %s console info!" % host)
@@ -988,15 +1131,19 @@ def restartHIOC(host):
     tn.write("rtemsReboot()\x0a")
     tn.close()
 
+
 def rebootHIOC(host):
     """ Attempts to power cycle a HIOC via the PDU entry in netconfig. """
     try:
         env = copy.deepcopy(os.environ)
-        del env['LD_LIBRARY_PATH']
-        p = subprocess.Popen([HIOC_POWER, host, 'cycle'], env=env, stdout=subprocess.PIPE)
+        del env["LD_LIBRARY_PATH"]
+        p = subprocess.Popen(
+            [HIOC_POWER, host, "cycle"], env=env, stdout=subprocess.PIPE
+        )
         print(p.communicate()[0])
     except:
         print("Error while trying to power cycle HIOC %s!" % host)
+
 
 def findPV(regexp, ioc):
     try:

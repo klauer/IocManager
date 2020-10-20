@@ -8,6 +8,7 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
@@ -22,7 +23,11 @@ class Ui_Dialog(object):
         self.verticalLayout.addWidget(self.commentEdit)
         self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.No|QtWidgets.QDialogButtonBox.Yes)
+        self.buttonBox.setStandardButtons(
+            QtWidgets.QDialogButtonBox.Cancel
+            | QtWidgets.QDialogButtonBox.No
+            | QtWidgets.QDialogButtonBox.Yes
+        )
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
 
@@ -34,7 +39,11 @@ class Ui_Dialog(object):
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
-        self.label.setText(_translate("Dialog", "File Saved.\n"
-"Would you like to commit your change in SVN?\n"
-"Please enter a comment for check-in:"))
-
+        self.label.setText(
+            _translate(
+                "Dialog",
+                "File Saved.\n"
+                "Would you like to commit your change in SVN?\n"
+                "Please enter a comment for check-in:",
+            )
+        )

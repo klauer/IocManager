@@ -6,17 +6,19 @@ import MyModel
 import hostname_ui
 import utils
 
+
 class hostnamedialog(QDialog):
     def __init__(self, parent=None):
-      QWidget.__init__(self, parent)
-      self.ui = hostname_ui.Ui_Dialog()
-      self.ui.setupUi(self)
+        QWidget.__init__(self, parent)
+        self.ui = hostname_ui.Ui_Dialog()
+        self.ui.setupUi(self)
+
 
 class MyDelegate(QStyledItemDelegate):
     def __init__(self, parent, hutch):
         QStyledItemDelegate.__init__(self, parent)
-        self.parent  = parent
-        self.hutch   = hutch
+        self.parent = parent
+        self.hutch = hutch
         self.boxsize = None
         self.hostdialog = hostnamedialog(parent)
 
@@ -93,41 +95,48 @@ class MyDelegate(QStyledItemDelegate):
                     editor.setCurrentIndex(model.hosts.index(value))
                     model.setData(index, QVariant(value), Qt.EditRole)
                 else:
-                    self.setEditorData(editor, index)  # Restore the original value!
+                    # Restore the original value!
+                    self.setEditorData(editor, index)
             else:
                 model.setData(index, QVariant(str(editor.currentText())), Qt.EditRole)
         elif col == MyModel.VERSION:
             idx = editor.currentIndex()
             if idx == editor.lastitem:
                 # Pick a new directory!
-                r=str(editor.itemText(0))
-                if r[0] != '/' and r[0:3] != '../':
+                r = str(editor.itemText(0))
+                if r[0] != "/" and r[0:3] != "../":
                     try:
-                        r=utils.EPICS_SITE_TOP + r[:r.rindex('/')]
+                        r = utils.EPICS_SITE_TOP + r[: r.rindex("/")]
                     except:
                         print("Error picking new directory!")
                 row = index.row()
                 id = model.getID(row)
-                d=QFileDialog(self.parent, "New Version for %s" % id, r)
+                d = QFileDialog(self.parent, "New Version for %s" % id, r)
                 d.setFileMode(QFileDialog.Directory)
-                d.setOptions(QFileDialog.ShowDirsOnly|QFileDialog.DontUseNativeDialog)
-                d.setSidebarUrls([QUrl("file://" + r),
-                                  QUrl("file://" + os.getenv("HOME")),
-                                  QUrl("file://" + utils.EPICS_SITE_TOP + "ioc/" + self.hutch),
-                                  QUrl("file://" + utils.EPICS_SITE_TOP + "ioc/common"),
-                                  QUrl("file://" + utils.EPICS_DEV_TOP )])
-                l=d.layout()
-                tmp=QLabel()
+                d.setOptions(QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog)
+                d.setSidebarUrls(
+                    [
+                        QUrl("file://" + r),
+                        QUrl("file://" + os.getenv("HOME")),
+                        QUrl("file://" + utils.EPICS_SITE_TOP + "ioc/" + self.hutch),
+                        QUrl("file://" + utils.EPICS_SITE_TOP + "ioc/common"),
+                        QUrl("file://" + utils.EPICS_DEV_TOP),
+                    ]
+                )
+                l = d.layout()
+                tmp = QLabel()
                 tmp.setText("Parent")
                 l.addWidget(tmp, 4, 0)
-                parentgui=QLineEdit()
+                parentgui = QLineEdit()
                 parentgui.setReadOnly(True)
                 l.addWidget(parentgui, 4, 1)
 
-                fn = lambda dir : self.setParent(parentgui, id, dir)
+                def fn(dir):
+                    return self.setParent(parentgui, id, dir)
+
                 d.directoryEntered.connect(fn)
                 d.currentChanged.connect(fn)
-                
+
                 if d.exec_() == QDialog.Rejected:
                     editor.setCurrentIndex(0)
                     return
@@ -161,4 +170,3 @@ class MyDelegate(QStyledItemDelegate):
 
     def do_commit(self, n, editor):
         self.commitData.emit(editor)
-    
